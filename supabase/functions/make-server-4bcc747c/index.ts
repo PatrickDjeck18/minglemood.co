@@ -104,6 +104,11 @@ app.options('/make-server-4bcc747c/admin/*', (c) => {
   return c.text('OK', 200);
 });
 
+app.options('/make-server-4bcc747c/admin/deactivated-profiles', (c) => {
+  console.log('🔄 OPTIONS preflight for deactivated profiles endpoint');
+  return c.text('OK', 200);
+});
+
 // Simple test endpoint - accessible without auth
 app.get('/test', (c) => {
   console.log('🧪 Test endpoint called');
@@ -616,6 +621,42 @@ app.get('/make-server-4bcc747c/admin/email-logs', async (c) => {
   } catch (error) {
     console.error('Error fetching email logs:', error);
     return c.json({ error: 'Failed to fetch email logs' }, 500);
+  }
+});
+
+// Admin deactivated profiles endpoint
+app.get('/make-server-4bcc747c/admin/deactivated-profiles', async (c) => {
+  try {
+    console.log('🚫 Admin deactivated profiles endpoint called');
+
+    // Always set CORS headers first
+    setCorsHeaders(c);
+
+    // Check authentication and admin status
+    const authHeader = c.req.header('Authorization');
+    const user = await validateUser(authHeader);
+
+    if (!user || !isAdmin(user.email)) {
+      return c.json({ error: 'Forbidden' }, 403);
+    }
+
+    // Get deactivated profiles from database (users where is_active is false)
+    const { data: deactivatedProfiles, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('is_active', false)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching deactivated profiles:', error);
+      return c.json({ error: 'Failed to fetch deactivated profiles' }, 500);
+    }
+
+    return c.json(deactivatedProfiles || []);
+  } catch (error) {
+    console.error('Error fetching deactivated profiles:', error);
+    setCorsHeaders(c);
+    return c.json({ error: 'Failed to fetch deactivated profiles' }, 500);
   }
 });
 
